@@ -22,9 +22,9 @@
       class="create-workspace-content">
 
       <!-- Samples -->
-      <md-tab md-on-select="getStartedController.onSelectTab(getStartedController.tabs[getStartedController.GET_STARTED])">
+      <md-tab md-on-select="getStartedController.onSelectTab()">
         <md-tab-label>
-          <span class="che-tab-label-title">{{getStartedController.GET_STARTED}}</span>
+          <span class="che-tab-label-title">{{getStartedController.tabs[0]}}</span>
         </md-tab-label>
         <md-tab-body>
           <get-started-tab></get-started-tab>
@@ -32,9 +32,9 @@
       </md-tab>
 
       <!-- Custom Workspace -->
-      <md-tab md-on-select="getStartedController.onSelectTab(getStartedController.tabs[getStartedController.CUSTOM_WORKSPACE])">
+      <md-tab md-on-select="getStartedController.onSelectTab()">
         <md-tab-label>
-          <span class="che-tab-label-title">{{getStartedController.CUSTOM_WORKSPACE}}</span>
+          <span class="che-tab-label-title">{{getStartedController.tabs[1]}}</span>
         </md-tab-label>
         <md-tab-body>
           <custom-workspace-tab></custom-workspace-tab>
