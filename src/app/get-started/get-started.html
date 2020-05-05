@@ -14,11 +14,15 @@
 
 <che-pf-page-main-area>
 
-  <che-pf-page-main-section class="get-started-header-section pf-u-box-shadow-sm-bottom" light="true">
+  <che-pf-page-main-section class="get-started-header-section pf-m-no-fill pf-u-pb-0" light="true">
+    <che-pf-masthead ng-if="getStartedController.selectedTabIndex===0"
+      title="Getting Started with {{branding.name}}"></che-pf-masthead>
+    <che-pf-masthead ng-if="getStartedController.selectedTabIndex===1"
+      title="Create Custom Workspace"></che-pf-masthead>
+  </che-pf-page-main-section>
 
-    <che-pf-masthead title="Getting Started with {{branding.name}}"></che-pf-masthead>
-
-    <md-tabs md-dynamic-height md-stretch-tabs="auto" md-selected="getStartedController.selectedTabIndex"
+  <che-pf-page-main-section class="pf-m-no-padding">
+    <md-tabs md-dynamic-height md-stretch-tabs="never" md-selected="getStartedController.selectedTabIndex"
       class="create-workspace-content">
 
       <!-- Samples -->
@@ -42,7 +46,6 @@
       </md-tab>
 
     </md-tabs>
-
   </che-pf-page-main-section>
 
 </che-pf-page-main-area>
