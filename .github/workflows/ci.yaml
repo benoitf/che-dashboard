@@ -10,23 +10,24 @@ name: CI
 # Trigger the workflow on push
 on:
   push:
-    branches:
-      - master
 jobs:
   docker-build:
     runs-on: ubuntu-latest
     env:
-      DOCKER_IMAGE: eclipse/che-dashboard
+      IMAGE_NAME: quay.io/eclipse/che-dashboard
     steps:
     - uses: actions/checkout@v2
       name: Checkout che-dashboard source code
+    - name: Docker Buildx
+      uses: crazy-max/ghaction-docker-buildx@v1.5.0
+      with:
+        version: v0.4.1
+    - name: "Docker Login"
+      run:  docker login -u "${{ secrets.QUAY_USERNAME }}" -p "${{ secrets.QUAY_TOKEN }}" quay.io
     - name: "Docker build"
       run: |
         docker image prune -a -f
-        docker build . -f Dockerfile.apache -t quay.io/${DOCKER_IMAGE}:next
-    - name: "Docker Login"
-      run:  docker login -u "${{ secrets.QUAY_USERNAME }}" -p "${{ secrets.QUAY_TOKEN }}" quay.io
-    - name: "Push Docker image (next)"
-      run: docker push quay.io/${DOCKER_IMAGE}:next
+        IMAGE_WITH_TAG=${IMAGE_NAME}:next
+        docker buildx build --cache-from="type=registry,ref=${IMAGE_WITH_TAG}" --cache-to="type=registry,ref=${IMAGE_WITH_TAG},mode=max" --platform "linux/amd64,linux/arm64,linux/ppc64le,linux/s390x" -t ${IMAGE_WITH_TAG} .
     - name: "Docker Logout"
       run: docker logout
