@@ -13,7 +13,7 @@ FROM docker.io/node:8.16.2-alpine as builder
 COPY package.json /dashboard/
 COPY yarn.lock /dashboard/
 WORKDIR /dashboard
-RUN yarn install --ignore-optional
+RUN yarn config set network-timeout 600000 -g && yarn install --ignore-optional
 COPY . /dashboard/
 RUN yarn build && yarn test
 
