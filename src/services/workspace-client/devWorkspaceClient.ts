@@ -10,6 +10,10 @@
  *   Red Hat, Inc. - initial API and implementation
  */
 
+import { V1alpha2DevWorkspace, V1alpha2DevWorkspaceTemplate } from '@devfile/api';
+import { DevfileCheTheiaPluginsResolver } from '@tmpwip/dw-handler/lib/devfile/devfile-che-theia-plugins-resolver';
+import { InversifyBinding } from '@tmpwip/dw-handler/lib/inversify/inversify-bindings';
+
 import { inject, injectable } from 'inversify';
 import { convertDevWorkspaceV2ToV1, isDeleting, isWebTerminal } from '../helpers/devworkspace';
 import { WorkspaceClient } from './';
@@ -81,20 +85,32 @@ export class DevWorkspaceClient extends WorkspaceClient {
     return convertDevWorkspaceV2ToV1(workspace);
   }
 
-  async create(devfile: IDevWorkspaceDevfile, pluginsDevfile: IDevWorkspaceDevfile[]): Promise<che.Workspace> {
+  async create(devfile: IDevWorkspaceDevfile, pluginsDevfile: IDevWorkspaceDevfile[], pluginRegistryUrl: string, attributes: { [key: string]: string } = {}): Promise<che.Workspace> {
     if (!devfile.components) {
       devfile.components = [];
     }
 
-    const createdWorkspace = await this.workspaceApi.create(devfile, false);
-    const namespace = createdWorkspace.metadata.namespace;
+    console.log('attributes are', attributes);
+    const search = attributes['SEARCH'];
+    const searchParam = new window.URLSearchParams(search);
+    let enableTheiaLibrary = false;
+    searchParam.forEach((val: string, key: string) => {
+      console.log('val ', val, 'is for key', key);
+      if ('enableTheiaLibrary' === key && val === 'true') {
+        enableTheiaLibrary = true;
+      }
+    });
 
+    const createdWorkspace: V1alpha2DevWorkspace = await this.workspaceApi.create(devfile, false);
+    const namespace = createdWorkspace?.metadata?.['namespace'];
+
+    const devWorkspaceTemplates: V1alpha2DevWorkspaceTemplate[] = [];
     for (const pluginDevfile of pluginsDevfile) {
       // todo handle error in a proper way
       const pluginName = pluginDevfile.metadata.name.replaceAll(' ', '-').toLowerCase();
-      const workspaceId = createdWorkspace.status.workspaceId;
+      const workspaceId = createdWorkspace?.status?.workspaceId;
       const devfileGroupVersion = `${devWorkspaceApiGroup}/${devworkspaceVersion}`;
-      const theiaDWT = await this.dwtApi.create(<IDevWorkspaceTemplate>{
+      const template = <IDevWorkspaceTemplate>{
         kind: 'DevWorkspaceTemplate',
         apiVersion: devfileGroupVersion,
         metadata: {
@@ -104,15 +120,47 @@ export class DevWorkspaceClient extends WorkspaceClient {
             {
               apiVersion: devfileGroupVersion,
               kind: devworkspaceSingularSubresource,
-              name: createdWorkspace.metadata.name,
-              uid: createdWorkspace.metadata.uid
+              name: createdWorkspace?.metadata?.['name'],
+              uid: createdWorkspace?.metadata?.['uid']
             }
           ]
         },
         spec: pluginDevfile
-      });
+      };
+      devWorkspaceTemplates.push(template);
+    }
 
-      createdWorkspace.spec.template.components.push({
+    const originDevfileUrl = attributes['ORIGIN_DEVFILE'];
+    const devWorkspace: V1alpha2DevWorkspace = createdWorkspace;
+    if (enableTheiaLibrary) {
+      console.log('Enabling Theia library for devfile', originDevfileUrl);
+      // call theia library to insert all the logic
+      const inversifyBindings = new InversifyBinding();
+      const container = await inversifyBindings.initBindings({
+        pluginRegistryUrl: pluginRegistryUrl,
+        axiosInstance: this.axios,
+      });
+      console.log('Using plugin registry url', pluginRegistryUrl);
+
+      const devfileCheTheiaPluginsResolver = container.get(DevfileCheTheiaPluginsResolver);
+      // call library to update devWorkspace and add optional templates
+      await devfileCheTheiaPluginsResolver.handle({
+        devfileUrl: originDevfileUrl,
+        namespace,
+        devWorkspace,
+        devWorkspaceTemplates,
+      });
+    }
+
+    console.log('Found devWorkspace being updated to', JSON.stringify(devWorkspace));
+    console.log('Found devWorkspaceTemplates length is', devWorkspaceTemplates.length);
+    console.log('Found devWorkspaceTemplates being updated to', JSON.stringify(devWorkspaceTemplates));
+
+    await Promise.all(devWorkspaceTemplates.map(async template => {
+      const theiaDWT = await this.dwtApi.create(<IDevWorkspaceTemplate>template);
+      console.log(`Creating template with name ${theiaDWT.metadata.name}`);
+
+      const kubernetesPlugin = {
         name: theiaDWT.metadata.name,
         plugin: {
           kubernetes: {
@@ -120,11 +168,14 @@ export class DevWorkspaceClient extends WorkspaceClient {
             namespace: theiaDWT.metadata.namespace
           }
         }
-      });
-    }
+      };
+      console.log('Adding kuubernetes plugin', kubernetesPlugin);
+      // update workspace
+      createdWorkspace.spec?.template?.components?.push(kubernetesPlugin);
+    }));
 
-    createdWorkspace.spec.started = true;
-    const updatedWorkspace = await this.workspaceApi.update(createdWorkspace);
+    (<IDevWorkspace>createdWorkspace).spec.started = true;
+    const updatedWorkspace = await this.workspaceApi.update(<IDevWorkspace>createdWorkspace);
 
     return convertDevWorkspaceV2ToV1(updatedWorkspace);
   }

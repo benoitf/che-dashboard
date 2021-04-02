@@ -411,7 +411,7 @@ export const actionCreators: ActionCreators = {
         }
 
         const dwPlugins = state.dwPlugins.plugins;
-        workspace = await devWorkspaceClient.create(devWorkspaceDevfile, dwPlugins);
+        workspace = await devWorkspaceClient.create(devWorkspaceDevfile, dwPlugins, state.workspaces.settings.cheWorkspacePluginRegistryUrl, attributes);
       } else {
         workspace = await cheWorkspaceClient.restApiClient.create<che.Workspace>(devfile, param);
 

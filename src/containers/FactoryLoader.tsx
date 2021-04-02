@@ -384,6 +384,8 @@ export class FactoryLoaderContainer extends React.PureComponent<Props, State> {
 
     await delay();
 
+    attrs['ORIGIN_DEVFILE'] = location;
+    attrs['SEARCH'] = search;
     const workspace = await this.resolveWorkspace(devfile, attrs);
 
     if (!workspace) {
